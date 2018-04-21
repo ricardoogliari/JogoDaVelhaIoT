@@ -1,0 +1,68 @@
+var five = require("johnny-five");
+var board = new five.Board();
+var PubNub = require('pubnub')
+
+pubnub = new PubNub({
+        publishKey : 'pub-c-0e59b032-e680-4ea2-your_key_here_:)',
+        subscribeKey : 'sub-c-51e68992-3ba4-11e8-your_key_here_:)'
+    })
+
+board.on("ready", function() {
+  var lcd = new five.LCD({
+    controller: "JHD1313M1"
+  });
+
+  var joystick = new five.Joystick(["A2", "A3"]);
+
+  // Observe change events from the Joystick!
+  joystick.on("change", function() {
+    pubnub.publish(
+      {
+        message: {
+            type: "move",
+            x : this.x,
+            y : this.y
+        },
+        channel: 'awesomeChannel'
+    },
+    function (status, response) {
+        //console.log(status, response);
+    });
+  });
+
+  var button = new five.Button(4);
+
+  button.on("press", function() {
+    pubnub.publish(
+      {
+        message: {
+            type: "press"
+        },
+        channel: 'awesomeChannel'
+    },
+    function (status, response) {
+        //console.log(status, response);
+    });
+  });
+
+  button.on("release", function() {
+  });
+
+  pubnub.addListener({
+        status: function(statusEvent) {},
+        message: function(message) {
+            console.log("New Message!!", message);
+            if (message.subscribedChannel == "finishGame"){
+              lcd.cursor(0, 0).bgColor("green").print(message.message);
+            } else {
+              lcd.clear();
+              lcd.cursor(0, 0).bgColor("white").print("Peleando");
+            }
+        },
+        presence: function(presenceEvent) {}
+    });
+  pubnub.subscribe({
+      channels: ['finishGame', 'resetGame']
+  });
+
+});
